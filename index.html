@@ -435,8 +435,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
       <div class="section">
         <label for="fontFamily">輪郭フォント</label>
         <select id="fontFamily">
-          <option value='"Hiragino Sans", "Yu Gothic", sans-serif'>Hiragino / Yu Gothic</option>
           <option value='"Hiragino Mincho ProN", "Yu Mincho", serif'>Mincho</option>
+          <option value='"Hiragino Sans", "Yu Gothic", sans-serif'>Hiragino / Yu Gothic</option>
           <option value='"Arial Black", "Hiragino Sans", sans-serif'>Heavy Sans</option>
         </select>
         <div class="preview-row">
@@ -455,6 +455,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
         <div class="toolbar">
           <button type="button" class="primary" id="generateBtn">生成</button>
           <button type="button" id="copyBtn">コピー</button>
+          <button type="button" id="copyRotatedBtn">90度回転コピー</button>
           <button type="button" id="downloadBtn">TXT保存</button>
           <button type="button" id="randomSeedBtn">seed更新</button>
         </div>
@@ -820,15 +821,47 @@ function generate() {
 
 async function copyOutput() {
   if (!els.result.value) generate();
+  await writeClipboard(els.result.value);
+  els.status.textContent = "copied";
+}
+
+async function copyRotatedOutput() {
+  if (!els.result.value) generate();
+  await writeClipboard(rotateTextClockwise(els.result.value));
+  els.status.textContent = "copied rotated";
+}
+
+async function writeClipboard(text) {
   try {
-    await navigator.clipboard.writeText(els.result.value);
-    els.status.textContent = "copied";
+    await navigator.clipboard.writeText(text);
   } catch (err) {
+    const previous = els.result.value;
+    els.result.value = text;
     els.result.focus();
     els.result.select();
     document.execCommand("copy");
-    els.status.textContent = "copied";
+    els.result.value = previous;
   }
+}
+
+function rotateTextClockwise(text) {
+  const rows = text.split("\n").map((line) => Array.from(line));
+  const height = rows.length;
+  const width = Math.max(...rows.map((row) => row.length), 0);
+  const padded = rows.map((row) => {
+    const next = row.slice();
+    while (next.length < width) next.push("　");
+    return next;
+  });
+  const rotated = [];
+  for (let x = 0; x < width; x++) {
+    let line = "";
+    for (let y = height - 1; y >= 0; y--) {
+      line += padded[y][x] || "　";
+    }
+    rotated.push(line.replace(/　+$/g, ""));
+  }
+  return rotated.join("\n").replace(/\n+$/g, "");
 }
 
 function downloadOutput() {
@@ -861,6 +894,7 @@ function updateModeUI() {
 
 document.getElementById("generateBtn").addEventListener("click", generate);
 document.getElementById("copyBtn").addEventListener("click", copyOutput);
+document.getElementById("copyRotatedBtn").addEventListener("click", copyRotatedOutput);
 document.getElementById("downloadBtn").addEventListener("click", downloadOutput);
 document.getElementById("selectBtn").addEventListener("click", () => {
   els.result.focus();
