@@ -455,7 +455,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
         <div class="toolbar">
           <button type="button" class="primary" id="generateBtn">生成</button>
           <button type="button" id="copyBtn">コピー</button>
-          <button type="button" id="copyRotatedBtn">90度回転コピー</button>
+          <button type="button" id="copyVerticalBtn">縦書き用コピー</button>
           <button type="button" id="downloadBtn">TXT保存</button>
           <button type="button" id="randomSeedBtn">seed更新</button>
         </div>
@@ -825,10 +825,10 @@ async function copyOutput() {
   els.status.textContent = "copied";
 }
 
-async function copyRotatedOutput() {
+async function copyVerticalOutput() {
   if (!els.result.value) generate();
-  await writeClipboard(rotateTextClockwise(els.result.value));
-  els.status.textContent = "copied rotated";
+  await writeClipboard(toVerticalPasteText(els.result.value));
+  els.status.textContent = "copied for vertical";
 }
 
 async function writeClipboard(text) {
@@ -844,7 +844,7 @@ async function writeClipboard(text) {
   }
 }
 
-function rotateTextClockwise(text) {
+function toVerticalPasteText(text) {
   const rows = text.split("\n").map((line) => Array.from(line));
   const height = rows.length;
   const width = Math.max(...rows.map((row) => row.length), 0);
@@ -853,15 +853,15 @@ function rotateTextClockwise(text) {
     while (next.length < width) next.push("　");
     return next;
   });
-  const rotated = [];
-  for (let x = 0; x < width; x++) {
+  const columns = [];
+  for (let x = width - 1; x >= 0; x--) {
     let line = "";
-    for (let y = height - 1; y >= 0; y--) {
+    for (let y = 0; y < height; y++) {
       line += padded[y][x] || "　";
     }
-    rotated.push(line.replace(/　+$/g, ""));
+    columns.push(line.replace(/　+$/g, ""));
   }
-  return rotated.join("\n").replace(/\n+$/g, "");
+  return columns.join("\n").replace(/\n+$/g, "");
 }
 
 function downloadOutput() {
@@ -894,7 +894,7 @@ function updateModeUI() {
 
 document.getElementById("generateBtn").addEventListener("click", generate);
 document.getElementById("copyBtn").addEventListener("click", copyOutput);
-document.getElementById("copyRotatedBtn").addEventListener("click", copyRotatedOutput);
+document.getElementById("copyVerticalBtn").addEventListener("click", copyVerticalOutput);
 document.getElementById("downloadBtn").addEventListener("click", downloadOutput);
 document.getElementById("selectBtn").addEventListener("click", () => {
   els.result.focus();
