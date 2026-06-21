@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vertical Wordfill</title>
+<style>
+:root {
+  --bg: #f6f3ee;
+  --paper: #fffcf7;
+  --panel: #ebe6dc;
+  --ink: #171514;
+  --muted: #716a61;
+  --line: #d7cfc2;
+  --accent: #245f73;
+  --accent-strong: #163f4d;
+  --red: #a33e35;
+  --shadow: 0 18px 45px rgba(31, 25, 18, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(23,21,20,0.035) 1px, transparent 1px) 0 0 / 26px 26px,
+    linear-gradient(180deg, rgba(23,21,20,0.025) 1px, transparent 1px) 0 0 / 26px 26px,
+    var(--bg);
+  color: var(--ink);
+  font-family: "Hiragino Sans", "Yu Gothic", "YuGothic", system-ui, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--accent); color: var(--accent-strong); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fffdf8; }
+button.primary:hover { background: var(--accent-strong); color: #fffdf8; }
+
+.app {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 18px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  padding: 8px 4px 18px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(24px, 3.2vw, 46px);
+  line-height: 1;
+  letter-spacing: 0;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.status {
+  min-width: 180px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(310px, 390px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.controls,
+.output-wrap {
+  background: rgba(255,252,247,0.88);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.controls {
+  border-radius: 8px;
+  padding: 16px;
+  position: sticky;
+  top: 16px;
+}
+
+.output-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.section:first-child { border-top: 0; padding-top: 0; }
+
+label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffefb;
+  color: var(--ink);
+  padding: 10px 11px;
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(36, 95, 115, 0.12);
+}
+
+textarea {
+  min-height: 166px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.row > * { flex: 1; }
+
+.range-line {
+  display: grid;
+  grid-template-columns: 1fr 70px;
+  gap: 10px;
+  align-items: center;
+}
+
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+.check {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-top: 11px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sample-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.sample-buttons button { font-size: 13px; min-height: 34px; }
+
+.mode-line {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mode-line label {
+  margin: 0;
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffefb;
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mode-line input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-line label:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fffdf8;
+}
+
+.hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.output-head {
+  min-height: 54px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.output-title {
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.output-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.result-shell {
+  overflow: auto;
+  background: #fffefb;
+}
+
+#result {
+  width: max-content;
+  min-width: 100%;
+  min-height: 620px;
+  margin: 0;
+  padding: 22px;
+  border: 0;
+  border-radius: 0;
+  background: #fffefb;
+  color: var(--ink);
+  font-family: "Yu Gothic", "Hiragino Sans", "Menlo", monospace;
+  font-size: 16px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  white-space: pre;
+  resize: none;
+}
+
+.preview-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.mini {
+  min-height: 136px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffefb;
+  overflow: hidden;
+}
+
+.mini-title {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#maskPreview {
+  display: block;
+  width: 100%;
+  height: 104px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+#texturePreview {
+  height: 104px;
+  padding: 8px;
+  overflow: hidden;
+  font-family: "Yu Gothic", "Hiragino Sans", monospace;
+  font-size: 12px;
+  line-height: 1.05;
+  white-space: pre;
+}
+
+.danger {
+  color: var(--red);
+  font-size: 13px;
+  min-height: 18px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+  .controls { position: static; }
+  header { align-items: start; flex-direction: column; }
+  .status { text-align: left; }
+  #result { min-height: 480px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Vertical Wordfill</h1>
+      <p class="subtitle">輪郭語をドット化し、詩の断片で埋めるテキスト生成ツール</p>
+    </div>
+    <div class="status" id="status">ready</div>
+  </header>
+
+  <main class="workspace">
+    <aside class="controls">
+      <div class="section">
+        <label for="shapeText">輪郭語</label>
+        <input id="shapeText" type="text" value="雨" autocomplete="off">
+      </div>
+
+      <div class="section">
+        <label for="sourceText">埋める本文</label>
+        <textarea id="sourceText">雨はまだ名前になるまえに
+窓の外でほどけている
+手のひらは小さな河口
+夜だけが乾かない</textarea>
+        <div class="sample-buttons">
+          <button type="button" data-sample="rain">雨</button>
+          <button type="button" data-sample="body">身体</button>
+          <button type="button" data-sample="city">都市</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <label>生成モード</label>
+        <div class="mode-line">
+          <label><input type="radio" name="fillMode" value="chars" checked>文字</label>
+          <label><input type="radio" name="fillMode" value="words">単語比率</label>
+        </div>
+        <div class="hint">単語比率は、単語を途中で分割せず、連続したマスに配置します。</div>
+      </div>
+
+      <div class="section" id="wordSection">
+        <label for="wordList">単語と割合</label>
+        <textarea id="wordList">雨 4
+夜 2
+窓 2
+河口 1
+手のひら 1</textarea>
+        <div class="hint">1行に「単語 割合」。例: <code>雨 4</code>、<code>夜:2</code>。割合は四捨五入で出現数に変換します。</div>
+      </div>
+
+      <div class="section">
+        <div class="grid2">
+          <div>
+            <label for="gridWidth">幅</label>
+            <input id="gridWidth" type="number" min="16" max="160" value="72">
+          </div>
+          <div>
+            <label for="gridHeight">高さ</label>
+            <input id="gridHeight" type="number" min="16" max="120" value="44">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label for="density">密度</label>
+        <div class="range-line">
+          <input id="density" type="range" min="0.05" max="1" step="0.01" value="0.78">
+          <input id="densityNum" type="number" min="0.05" max="1" step="0.01" value="0.78">
+        </div>
+        <label class="check" for="keepSpace">
+          <input id="keepSpace" type="checkbox">
+          空白や改行も素材に含める
+        </label>
+      </div>
+
+      <div class="section">
+        <div class="grid2">
+          <div>
+            <label for="seed">seed</label>
+            <input id="seed" type="number" value="1">
+          </div>
+          <div>
+            <label for="fontScale">輪郭倍率</label>
+            <input id="fontScale" type="number" min="0.55" max="1.3" step="0.05" value="0.92">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label for="fontFamily">輪郭フォント</label>
+        <select id="fontFamily">
+          <option value='"Hiragino Sans", "Yu Gothic", sans-serif'>Hiragino / Yu Gothic</option>
+          <option value='"Hiragino Mincho ProN", "Yu Mincho", serif'>Mincho</option>
+          <option value='"Arial Black", "Hiragino Sans", sans-serif'>Heavy Sans</option>
+        </select>
+        <div class="preview-row">
+          <div class="mini">
+            <div class="mini-title">mask</div>
+            <canvas id="maskPreview" width="220" height="104"></canvas>
+          </div>
+          <div class="mini">
+            <div class="mini-title">texture</div>
+            <div id="texturePreview"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="toolbar">
+          <button type="button" class="primary" id="generateBtn">生成</button>
+          <button type="button" id="copyBtn">コピー</button>
+          <button type="button" id="downloadBtn">TXT保存</button>
+          <button type="button" id="randomSeedBtn">seed更新</button>
+        </div>
+        <div class="danger" id="error"></div>
+      </div>
+    </aside>
+
+    <section class="output-wrap">
+      <div class="output-head">
+        <div>
+          <div class="output-title">出力</div>
+          <div class="output-meta" id="outputMeta">72 x 44</div>
+        </div>
+        <div class="toolbar">
+          <button type="button" id="selectBtn">全選択</button>
+        </div>
+      </div>
+      <div class="result-shell">
+        <textarea id="result" spellcheck="false"></textarea>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const els = {
+  shapeText: document.getElementById("shapeText"),
+  sourceText: document.getElementById("sourceText"),
+  gridWidth: document.getElementById("gridWidth"),
+  gridHeight: document.getElementById("gridHeight"),
+  density: document.getElementById("density"),
+  densityNum: document.getElementById("densityNum"),
+  keepSpace: document.getElementById("keepSpace"),
+  wordSection: document.getElementById("wordSection"),
+  wordList: document.getElementById("wordList"),
+  seed: document.getElementById("seed"),
+  fontScale: document.getElementById("fontScale"),
+  fontFamily: document.getElementById("fontFamily"),
+  result: document.getElementById("result"),
+  status: document.getElementById("status"),
+  error: document.getElementById("error"),
+  outputMeta: document.getElementById("outputMeta"),
+  maskPreview: document.getElementById("maskPreview"),
+  texturePreview: document.getElementById("texturePreview")
+};
+
+const samples = {
+  rain: {
+    shape: "雨",
+    text: "雨はまだ名前になるまえに\n窓の外でほどけている\n手のひらは小さな河口\n夜だけが乾かない"
+  },
+  body: {
+    shape: "身",
+    text: "身体は一行ずつ遅れて届く\n骨の奥で小さな返事が鳴る\n触れなかった場所だけが\n今日の輪郭を覚えている"
+  },
+  city: {
+    shape: "街",
+    text: "都市は眠るふりをして\n信号のまばたきを数える\nだれのものでもない足音が\n地下で朝を組み立てる"
+  }
+};
+
+function hashSeed(value) {
+  let h = 2166136261 >>> 0;
+  const text = String(value);
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function makeRandom(seed) {
+  let t = hashSeed(seed);
+  return function rand() {
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function normalizeMaterial(text, keepSpace) {
+  const chars = Array.from(text);
+  const filtered = keepSpace ? chars.map((ch) => /\s/.test(ch) ? "　" : ch) : chars.filter((ch) => !/\s/.test(ch));
+  return filtered.length ? filtered : ["・"];
+}
+
+function currentFillMode() {
+  const checked = document.querySelector('input[name="fillMode"]:checked');
+  return checked ? checked.value : "chars";
+}
+
+function parseWordWeights(text) {
+  const entries = [];
+  text.split(/\n+/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const match = trimmed.match(/^(.+?)(?:\s+|[:：,、])([0-9]+(?:\.[0-9]+)?)$/);
+    const word = match ? match[1].trim() : trimmed;
+    const weight = match ? Number(match[2]) : 1;
+    if (word && Number.isFinite(weight) && weight > 0) {
+      entries.push({ word, weight, length: Array.from(word).length });
+    }
+  });
+  return entries.length ? entries : [{ word: "・", weight: 1, length: 1 }];
+}
+
+function countMaskCells(mask) {
+  let cells = 0;
+  mask.forEach((row) => row.forEach((cell) => { if (cell) cells++; }));
+  return cells;
+}
+
+function buildWeightedWordPool(entries, targetCells) {
+  const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  const avgLength = entries.reduce((sum, entry) => sum + entry.length * (entry.weight / totalWeight), 0);
+  const totalWords = Math.max(1, Math.round(targetCells / Math.max(1, avgLength)));
+  const planned = entries.map((entry) => {
+    const exact = totalWords * entry.weight / totalWeight;
+    const count = Math.floor(exact);
+    return { ...entry, exact, count, remainder: exact - count };
+  });
+
+  let used = planned.reduce((sum, entry) => sum + entry.count, 0);
+  planned.sort((a, b) => b.remainder - a.remainder);
+  for (let i = 0; used < totalWords; i++, used++) {
+    planned[i % planned.length].count++;
+  }
+
+  const pool = [];
+  planned.forEach((entry) => {
+    for (let i = 0; i < entry.count; i++) pool.push(entry.word);
+  });
+  return pool;
+}
+
+function shuffleCopy(chars, rand) {
+  const pool = chars.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = pool[i];
+    pool[i] = pool[j];
+    pool[j] = tmp;
+  }
+  return pool;
+}
+
+function fitFontSize(ctx, shape, maxWidth, maxHeight, family, scale) {
+  let size = Math.floor(maxHeight * scale);
+  const chars = Array.from(shape);
+  for (; size > 8; size--) {
+    ctx.font = `900 ${size}px ${family}`;
+    const colWidth = Math.max(...chars.map((ch) => ctx.measureText(ch).width));
+    const textWidth = colWidth;
+    const textHeight = size * chars.length * 0.94;
+    if (textWidth <= maxWidth && textHeight <= maxHeight) return size;
+  }
+  return size;
+}
+
+function buildMask(width, height) {
+  const shape = els.shapeText.value.trim() || "　";
+  const scale = clampNumber(els.fontScale.value, 0.55, 1.3, 0.92);
+  const canvas = document.createElement("canvas");
+  const ratio = Math.max(4, Math.floor(900 / Math.max(width, height)));
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const pad = ratio * 2;
+  const family = els.fontFamily.value;
+  const chars = Array.from(shape);
+  const fontSize = fitFontSize(ctx, shape, canvas.width - pad * 2, canvas.height - pad * 2, family, scale);
+  ctx.font = `900 ${fontSize}px ${family}`;
+
+  const centerX = canvas.width / 2;
+  const totalHeight = fontSize * chars.length * 0.94;
+  let y = (canvas.height - totalHeight) / 2 + fontSize * 0.47;
+  chars.forEach((ch) => {
+    ctx.fillText(ch, centerX, y);
+    y += fontSize * 0.94;
+  });
+
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const mask = [];
+  for (let gy = 0; gy < height; gy++) {
+    const row = [];
+    for (let gx = 0; gx < width; gx++) {
+      let ink = 0;
+      let seen = 0;
+      const x0 = gx * ratio;
+      const y0 = gy * ratio;
+      for (let sy = 0; sy < ratio; sy += 2) {
+        for (let sx = 0; sx < ratio; sx += 2) {
+          const idx = ((y0 + sy) * canvas.width + x0 + sx) * 4 + 3;
+          ink += data[idx];
+          seen++;
+        }
+      }
+      row.push(ink / seen > 18);
+    }
+    mask.push(row);
+  }
+  drawMaskPreview(mask);
+  return mask;
+}
+
+function drawMaskPreview(mask) {
+  const canvas = els.maskPreview;
+  const ctx = canvas.getContext("2d");
+  const h = mask.length;
+  const w = mask[0].length;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const cell = Math.min(canvas.width / w, canvas.height / h);
+  const ox = (canvas.width - w * cell) / 2;
+  const oy = (canvas.height - h * cell) / 2;
+  ctx.fillStyle = "#fffefb";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#171514";
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (mask[y][x]) ctx.fillRect(ox + x * cell, oy + y * cell, Math.ceil(cell), Math.ceil(cell));
+    }
+  }
+}
+
+function fillWithChars(mask, width, height, density, rand) {
+  const material = normalizeMaterial(els.sourceText.value, els.keepSpace.checked);
+  let pool = shuffleCopy(material, rand);
+  let cursor = 0;
+  let filled = 0;
+  let cells = 0;
+  const lines = [];
+
+  for (let y = 0; y < height; y++) {
+    let line = "";
+    for (let x = 0; x < width; x++) {
+      if (mask[y][x]) {
+        cells++;
+        if (rand() <= density) {
+          if (cursor >= pool.length) {
+            pool = shuffleCopy(material, rand);
+            cursor = 0;
+          }
+          line += pool[cursor++];
+          filled++;
+        } else {
+          line += "　";
+        }
+      } else {
+        line += "　";
+      }
+    }
+    lines.push(line);
+  }
+
+  return { output: lines.join("\n"), cells, filled, detail: "chars" };
+}
+
+function pickWordThatFits(pool, limit) {
+  for (let i = 0; i < pool.length; i++) {
+    if (Array.from(pool[i]).length <= limit) {
+      return pool.splice(i, 1)[0];
+    }
+  }
+  return "";
+}
+
+function fillWithWords(mask, width, height, density, rand) {
+  const cells = countMaskCells(mask);
+  const targetCells = Math.max(1, Math.round(cells * density));
+  const entries = parseWordWeights(els.wordList.value);
+  const pool = shuffleCopy(buildWeightedWordPool(entries, targetCells), rand);
+  const rows = Array.from({ length: height }, () => Array(width).fill("　"));
+  const runs = [];
+  let filled = 0;
+  let placed = 0;
+  const counts = {};
+
+  for (let y = 0; y < height; y++) {
+    let x = 0;
+    while (x < width) {
+      if (!mask[y][x]) {
+        x++;
+        continue;
+      }
+      let runEnd = x;
+      while (runEnd < width && mask[y][runEnd]) runEnd++;
+      runs.push({ y, start: x, end: runEnd });
+      x = runEnd + 1;
+    }
+  }
+
+  let activeRuns = shuffleCopy(runs, rand);
+  while (pool.length && filled < targetCells && activeRuns.length) {
+    const nextRuns = [];
+    activeRuns.forEach((run) => {
+      if (!pool.length || filled >= targetCells) return;
+
+      let cursor = run.start;
+      while (cursor < run.end && rows[run.y][cursor] !== "　") cursor++;
+      if (cursor >= run.end) return;
+
+      const remaining = run.end - cursor;
+      const word = pickWordThatFits(pool, remaining);
+      if (!word) return;
+
+      Array.from(word).forEach((ch, offset) => {
+        rows[run.y][cursor + offset] = ch;
+      });
+      const wordLength = Array.from(word).length;
+      filled += wordLength;
+      placed++;
+      counts[word] = (counts[word] || 0) + 1;
+
+      if (cursor + wordLength < run.end) {
+        nextRuns.push(run);
+      }
+    });
+    activeRuns = shuffleCopy(nextRuns, rand);
+  }
+
+  const detail = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja"))
+    .map(([word, count]) => `${word}:${count}`)
+    .join(" ");
+  return { output: rows.map((row) => row.join("")).join("\n"), cells, filled, detail: `words ${placed}${detail ? " / " + detail : ""}` };
+}
+
+function generate() {
+  els.error.textContent = "";
+  const width = clampNumber(els.gridWidth.value, 16, 160, 72);
+  const height = clampNumber(els.gridHeight.value, 16, 120, 44);
+  const density = clampNumber(els.density.value, 0.05, 1, 0.78);
+  els.gridWidth.value = width;
+  els.gridHeight.value = height;
+  els.density.value = density;
+  els.densityNum.value = density;
+
+  const mask = buildMask(width, height);
+  const mode = currentFillMode();
+  const rand = makeRandom(`${els.seed.value}:${els.shapeText.value}:${width}x${height}:${density}:${mode}:${els.wordList.value}`);
+  const result = mode === "words"
+    ? fillWithWords(mask, width, height, density, rand)
+    : fillWithChars(mask, width, height, density, rand);
+
+  els.result.value = result.output;
+  els.result.style.height = `${Math.max(620, Math.ceil(height * 16 * 1.05 + 48))}px`;
+  els.texturePreview.textContent = result.output.split("\n").slice(0, 11).map((line) => line.slice(0, 28)).join("\n");
+  els.outputMeta.textContent = `${width} x ${height} / mask ${result.cells} / filled ${result.filled} / density ${density.toFixed(2)} / ${result.detail}`;
+  els.status.textContent = `generated ${new Date().toLocaleTimeString("ja-JP")}`;
+}
+
+async function copyOutput() {
+  if (!els.result.value) generate();
+  try {
+    await navigator.clipboard.writeText(els.result.value);
+    els.status.textContent = "copied";
+  } catch (err) {
+    els.result.focus();
+    els.result.select();
+    document.execCommand("copy");
+    els.status.textContent = "copied";
+  }
+}
+
+function downloadOutput() {
+  if (!els.result.value) generate();
+  const blob = new Blob([els.result.value], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const shape = (els.shapeText.value.trim() || "word").replace(/[\\/:*?"<>|]/g, "_");
+  a.href = url;
+  a.download = `wordfill-${shape}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  els.status.textContent = "downloaded";
+}
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+function updateModeUI() {
+  const mode = currentFillMode();
+  els.wordSection.style.display = mode === "words" ? "block" : "none";
+}
+
+document.getElementById("generateBtn").addEventListener("click", generate);
+document.getElementById("copyBtn").addEventListener("click", copyOutput);
+document.getElementById("downloadBtn").addEventListener("click", downloadOutput);
+document.getElementById("selectBtn").addEventListener("click", () => {
+  els.result.focus();
+  els.result.select();
+});
+document.getElementById("randomSeedBtn").addEventListener("click", () => {
+  els.seed.value = Math.floor(Math.random() * 1000000);
+  generate();
+});
+
+document.querySelectorAll("[data-sample]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const sample = samples[button.dataset.sample];
+    els.shapeText.value = sample.shape;
+    els.sourceText.value = sample.text;
+    generate();
+  });
+});
+
+els.density.addEventListener("input", () => {
+  els.densityNum.value = els.density.value;
+});
+els.densityNum.addEventListener("input", () => {
+  els.density.value = els.densityNum.value;
+});
+
+document.querySelectorAll('input[name="fillMode"]').forEach((input) => {
+  input.addEventListener("change", () => {
+    updateModeUI();
+    generate();
+  });
+});
+
+const liveGenerate = debounce(generate, 180);
+[
+  els.shapeText,
+  els.sourceText,
+  els.wordList,
+  els.gridWidth,
+  els.gridHeight,
+  els.density,
+  els.densityNum,
+  els.keepSpace,
+  els.seed,
+  els.fontScale,
+  els.fontFamily
+].forEach((el) => {
+  el.addEventListener("input", liveGenerate);
+  el.addEventListener("change", liveGenerate);
+});
+
+try {
+  updateModeUI();
+  generate();
+} catch (err) {
+  els.error.textContent = err.message;
+  els.status.textContent = "error";
+}
+</script>
+</body>
+</html>
